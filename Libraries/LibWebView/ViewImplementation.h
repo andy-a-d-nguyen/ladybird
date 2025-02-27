@@ -9,6 +9,8 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
@@ -35,16 +37,24 @@ public:
     virtual ~ViewImplementation();
 
     struct DOMNodeProperties {
-        String computed_style_json;
-        String resolved_style_json;
-        String custom_properties_json;
-        String node_box_sizing_json;
-        String aria_properties_state_json;
-        String fonts_json;
+        JsonObject computed_style;
+        JsonObject resolved_style;
+        JsonObject custom_properties;
+        JsonObject node_box_sizing;
+        JsonObject aria_properties_state;
+        JsonArray fonts;
     };
+
+    static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
+    static Optional<ViewImplementation&> find_view_by_id(u64);
+
+    u64 view_id() const { return m_view_id; }
 
     void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
     URL::URL const& url() const { return m_url; }
+
+    void set_title(Badge<WebContentClient>, ByteString title) { m_title = move(title); }
+    ByteString const& title() const { return m_title; }
 
     String const& handle() const { return m_client_state.client_handle; }
 
@@ -93,10 +103,14 @@ public:
     void get_source();
 
     void inspect_dom_tree();
-    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
     void inspect_accessibility_tree();
-    void clear_inspected_dom_node();
     void get_hovered_node_id();
+
+    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void clear_inspected_dom_node();
+
+    void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void clear_highlighted_dom_node();
 
     void set_dom_node_text(Web::UniqueNodeID node_id, String text);
     void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
@@ -192,9 +206,9 @@ public:
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
     Function<void(URL::URL const&, URL::URL const&, String const&)> on_received_source;
-    Function<void(ByteString const&)> on_received_dom_tree;
-    Function<void(Optional<DOMNodeProperties>)> on_received_dom_node_properties;
-    Function<void(ByteString const&)> on_received_accessibility_tree;
+    Function<void(JsonObject)> on_received_dom_tree;
+    Function<void(DOMNodeProperties)> on_received_dom_node_properties;
+    Function<void(JsonObject)> on_received_accessibility_tree;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
@@ -281,6 +295,7 @@ protected:
     } m_client_state;
 
     URL::URL m_url;
+    ByteString m_title;
 
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };
@@ -304,6 +319,10 @@ protected:
     size_t m_number_of_elements_playing_audio { 0 };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
+    //        is required to be globally unique for Firefox DevTools.
+    u64 m_view_id { 0 };
 };
 
 }

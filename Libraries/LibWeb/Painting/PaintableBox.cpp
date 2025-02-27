@@ -19,6 +19,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -474,7 +475,7 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
-    if (phase == PaintPhase::Overlay && layout_node().document().inspected_layout_node() == &layout_node_with_style_and_box_metrics()) {
+    if (phase == PaintPhase::Overlay && layout_node().document().highlighted_layout_node() == &layout_node_with_style_and_box_metrics()) {
         auto content_rect = absolute_united_content_rect();
         auto margin_rect = united_rect_for_continuation_chain(*this, [](PaintableBox const& box) {
             auto margin_box = box.box_model().margin_box();
@@ -758,7 +759,7 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
 
-        if (paintable.document().inspected_layout_node() == &paintable.layout_node())
+        if (paintable.document().highlighted_layout_node() == &paintable.layout_node())
             context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Magenta);
 
         auto text = paintable.text_for_rendering();

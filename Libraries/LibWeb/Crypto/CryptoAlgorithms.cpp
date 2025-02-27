@@ -3,7 +3,7 @@
  * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2024-2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,14 +17,10 @@
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
-#include <LibCrypto/Curves/Ed25519.h>
-#include <LibCrypto/Curves/Ed448.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/Curves/X25519.h>
-#include <LibCrypto/Curves/X448.h>
 #include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/HashManager.h>
-#include <LibCrypto/Hash/MGF.h>
 #include <LibCrypto/Hash/PBKDF2.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -245,7 +241,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_
 
     // We know that if any of the extra parameters are provided, all of them must be
     if (!jwk.p.has_value())
-        return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e), 0, 0);
+        return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e));
 
     auto p = TRY(base64_url_uint_decode(realm, *jwk.p));
     auto q = TRY(base64_url_uint_decode(realm, *jwk.q));
@@ -3778,7 +3774,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     // 6. If performing the key generation operation results in an error, then throw an OperationError.
     auto maybe_private_key_data = curve.visit(
         [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
-        [](auto instance) { return instance.generate_private_key_scalar(); });
+        [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -3787,7 +3783,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
 
     auto maybe_public_key_data = curve.visit(
         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-        [&](auto instance) { return instance.generate_public_key_point(private_key_data); });
+        [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -3907,7 +3903,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
         // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
         auto maybe_signature = curve.visit(
             [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Signature> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.sign_scalar(M, d.d()); });
+            [&](auto instance) { return instance.sign(M, d.d()); });
 
         if (maybe_signature.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_signature.error().string_literal()));
@@ -4003,7 +3999,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.verify_point(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
+            [&](auto instance) { return instance.verify(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
 
         if (maybe_result.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
@@ -4645,7 +4641,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
 
                     auto maybe_public_key = curve.visit(
                         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-                        [&](auto instance) { return instance.generate_public_key_point(private_key.d()); });
+                        [&](auto instance) { return instance.generate_public_key(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
                     auto x_bytes = TRY(public_key.x_bytes());
@@ -4790,7 +4786,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     // 3. If performing the operation results in an error, then throw a OperationError.
     auto maybe_private_key_data = curve.visit(
         [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
-        [](auto instance) { return instance.generate_private_key_scalar(); });
+        [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -4799,7 +4795,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
 
     auto maybe_public_key_data = curve.visit(
         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-        [&](auto instance) { return instance.generate_public_key_point(private_key_data); });
+        [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -4909,7 +4905,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
 
         auto maybe_secret = curve.visit(
             [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-            [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate_point(private_key_data.d(), public_key_data.to_secpxxxr1_point()); });
+            [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate(private_key_data.d(), public_key_data.to_secpxxxr1_point()); });
 
         if (maybe_secret.is_error()) {
             auto message = TRY_OR_THROW_OOM(realm.vm(), String::formatted("Failed to compute secret: {}", maybe_secret.error()));
@@ -5539,7 +5535,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     auto maybe_public_key = curve.visit(
                         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-                        [&](auto instance) { return instance.generate_public_key_point(private_key.d()); });
+                        [&](auto instance) { return instance.generate_public_key(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
                     auto x_bytes = TRY(public_key.x_bytes());
@@ -6092,7 +6088,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign([[maybe_unused]] Alg
         return WebIDL::OperationError::create(realm, "Failed to generate public key"_string);
     auto public_key = maybe_public_key.release_value();
 
-    auto maybe_signature = curve.sign(public_key, private_key, message);
+    auto maybe_signature = curve.sign(private_key, message);
     if (maybe_signature.is_error())
         return WebIDL::OperationError::create(realm, "Failed to sign message"_string);
     auto signature = maybe_signature.release_value();
@@ -6123,10 +6119,14 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
     ::Crypto::Curves::Ed25519 curve;
-    auto result = curve.verify(public_key, signature, message);
+    auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message);
+    if (maybe_verified.is_error()) {
+        auto error_message = MUST(String::from_utf8(maybe_verified.error().string_literal()));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
 
     // 10. Return result.
-    return JS::Value(result);
+    return maybe_verified.release_value();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
@@ -6657,26 +6657,34 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     // all major browsers instead raise a TypeError, for example:
     //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
     // Because we are forced by neither peer pressure nor the spec, we don't support it either.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
-    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
-    if (hash_algorithm == "SHA-1") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-256") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-384") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-512") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else {
-        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+
+    // Note: Check for zero length early because our implementation doesn't support it.
+    if (*length_optional == 0) {
+        return TRY(JS::ArrayBuffer::create(realm, static_cast<size_t>(0)));
     }
 
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_algorithm == "SHA-1")
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_algorithm == "SHA-256")
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_algorithm == "SHA-384")
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_algorithm == "SHA-512")
+            return ::Crypto::Hash::HashKind::SHA512;
+        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+    }());
+
+    ::Crypto::Hash::HKDF hkdf(hash_kind);
+    auto maybe_result = hkdf.derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
+
     // 4. If the key derivation operation fails, then throw an OperationError.
-    if (result.is_error())
+    if (maybe_result.is_error())
         return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
     // 5. Return result
-    return JS::ArrayBuffer::create(realm, result.release_value());
+    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
 WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(AlgorithmParams const&)
@@ -6708,32 +6716,32 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
     // the contents of the salt attribute of normalizedAlgorithm as the salt, S,
     // the value of the iterations attribute of normalizedAlgorithm as the iteration count, c,
     // and length divided by 8 as the intended key length, dkLen.
-    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
-
     auto password = key->handle().get<ByteBuffer>();
-
     auto salt = normalized_algorithm.salt;
     auto iterations = normalized_algorithm.iterations;
     auto derived_key_length_bytes = *length_optional / 8;
 
-    if (hash_algorithm == "SHA-1") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-256") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-384") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA384>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-512") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA512>>(password, salt, iterations, derived_key_length_bytes);
-    } else {
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_algorithm == "SHA-1")
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_algorithm == "SHA-256")
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_algorithm == "SHA-384")
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_algorithm == "SHA-512")
+            return ::Crypto::Hash::HashKind::SHA512;
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
-    }
+    }());
+
+    ::Crypto::Hash::PBKDF2 pbkdf2(hash_kind);
+    auto maybe_result = pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes);
 
     // 5. If the key derivation operation fails, then throw an OperationError.
-    if (result.is_error())
+    if (maybe_result.is_error())
         return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
     // 6. Return result
-    return JS::ArrayBuffer::create(realm, result.release_value());
+    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations

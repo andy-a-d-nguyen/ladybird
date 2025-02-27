@@ -950,7 +950,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                 bool may_be_null = !optional_default_value.has_value() || parameter.type->is_nullable() || optional_default_value.value() == "null";
 
                 // Required dictionary members cannot be null.
-                may_be_null &= !member.required;
+                may_be_null &= !member.required && !member.default_value.has_value();
 
                 if (member.type->is_string() && optional && may_be_null) {
                     dictionary_generator.append(R"~~~(
@@ -1586,9 +1586,10 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
             } else {
                 if (!optional_default_value.has_value()) {
+                    union_generator.set("nullish_or_undefined", union_type.is_nullable() ? "nullish" : "undefined");
                     union_generator.append(R"~~~(
     Optional<@union_type@> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_undefined())
+    if (!@js_name@@js_suffix@.is_@nullish_or_undefined@())
         @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                 } else {
@@ -2701,9 +2702,9 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     // 10. Let element be the last entry in definition's construction stack.
     auto& element = definition->construction_stack().last();
 
-    // 11. If element is an already constructed marker, then throw an "InvalidStateError" DOMException.
+    // 11. If element is an already constructed marker, then throw a TypeError.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_string));
+        return vm.throw_completion<JS::TypeError>("Custom element has already been constructed"sv);
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<GC::Ref<DOM::Element>>();

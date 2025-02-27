@@ -9,9 +9,11 @@
 
 #pragma once
 
+#include <LibRegex/Regex.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/FileAPI/FileList.h>
+#include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -52,10 +54,12 @@ class HTMLInputElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public Layout::ImageProvider
-    , public PopoverInvokerElement {
+    , public PopoverInvokerElement
+    , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement)
+    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement);
+    AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
 public:
     virtual ~HTMLInputElement() override;
@@ -149,9 +153,9 @@ public:
     WebIDL::ExceptionOr<void> step_up(WebIDL::Long n = 1);
     WebIDL::ExceptionOr<void> step_down(WebIDL::Long n = 1);
 
+    bool will_validate();
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
-    void set_custom_validity(String const&);
 
     WebIDL::ExceptionOr<void> show_picker();
 
@@ -191,8 +195,6 @@ public:
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
-    GC::Ref<ValidityState const> validity() const;
-
     // ^HTMLElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return type_state() != TypeAttributeState::Hidden; }
@@ -214,6 +216,8 @@ public:
     bool select_applies() const;
     bool selection_or_range_applies() const;
     bool selection_direction_applies() const;
+    bool pattern_applies() const;
+    bool multiple_applies() const;
     bool has_selectable_text() const;
 
     bool supports_a_picker() const;
@@ -343,6 +347,8 @@ private:
     GC::Ptr<DecodedImageData> image_data() const;
     GC::Ptr<SharedResourceRequest> m_resource_request;
     SelectedCoordinate m_selected_coordinate;
+
+    Optional<Regex<ECMA262>> compiled_pattern_regular_expression() const;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 

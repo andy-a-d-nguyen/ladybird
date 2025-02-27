@@ -14,6 +14,7 @@
 #include <LibRegex/Regex.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/NodePrototype.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -1280,6 +1281,11 @@ void Node::set_document(Badge<Document>, Document& document)
     set_document(document);
 }
 
+void Node::set_document(Badge<NamedNodeMap>, Document& document)
+{
+    set_document(document);
+}
+
 void Node::set_document(Document& document)
 {
     if (m_document.ptr() == &document)
@@ -1309,6 +1315,12 @@ bool Node::is_editable() const
 
     // its parent is an editing host or editable;
     if (!parent() || !parent()->is_editable_or_editing_host())
+        return false;
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+    // When a node is inert:
+    // - If it is editable, the node behaves as if it were non-editable.
+    if (is_inert())
         return false;
 
     // and either it is an HTML element,
@@ -2108,6 +2120,17 @@ bool Node::is_default_namespace(Optional<String> namespace_) const
 
     // 3. Return true if defaultNamespace is the same as namespace; otherwise false.
     return default_namespace == namespace_;
+}
+
+bool Node::is_inert() const
+{
+    if (auto* html_element = as_if<HTML::HTMLElement>(*this))
+        return html_element->is_inert();
+
+    if (auto* enclosing_html_element = this->enclosing_html_element())
+        return enclosing_html_element->is_inert();
+
+    return false;
 }
 
 // https://dom.spec.whatwg.org/#in-a-document-tree

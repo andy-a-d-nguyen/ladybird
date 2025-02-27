@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -17,7 +17,9 @@
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -157,13 +159,15 @@ Size ComputedProperties::size_value(PropertyID id) const
             return Size::make_min_content();
         case Keyword::MaxContent:
             return Size::make_max_content();
-        case Keyword::FitContent:
-            return Size::make_fit_content();
         case Keyword::None:
             return Size::make_none();
         default:
             VERIFY_NOT_REACHED();
         }
+    }
+    if (value.is_fit_content()) {
+        auto& fit_content = value.as_fit_content();
+        return Size::make_fit_content(fit_content.length_percentage());
     }
 
     if (value.is_calculated())
@@ -953,6 +957,9 @@ ContentVisibility ComputedProperties::content_visibility() const
 Cursor ComputedProperties::cursor() const
 {
     auto const& value = property(PropertyID::Cursor);
+    // FIXME: We don't currently support custom cursors.
+    if (value.is_url())
+        return Cursor::Auto;
     return keyword_to_cursor(value.to_keyword()).release_value();
 }
 
@@ -1593,6 +1600,14 @@ MixBlendMode ComputedProperties::mix_blend_mode() const
 {
     auto const& value = property(PropertyID::MixBlendMode);
     return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
+}
+
+Optional<FlyString> ComputedProperties::view_transition_name() const
+{
+    auto const& value = property(PropertyID::ViewTransitionName);
+    if (value.is_custom_ident())
+        return value.as_custom_ident().custom_ident();
+    return {};
 }
 
 MaskType ComputedProperties::mask_type() const

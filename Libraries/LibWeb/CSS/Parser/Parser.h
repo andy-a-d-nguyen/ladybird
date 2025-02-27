@@ -264,7 +264,7 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_size(ComponentValue const&);
-    Optional<GridFitContent> parse_fit_content(Vector<ComponentValue> const&);
+    Optional<GridFitContent> parse_grid_fit_content(Vector<ComponentValue> const&);
     Optional<GridMinMax> parse_min_max(Vector<ComponentValue> const&);
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
@@ -274,6 +274,8 @@ private:
 
     Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
+
+    RefPtr<FitContentStyleValue> parse_fit_content_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>
     Optional<Vector<TElement>> parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position);
@@ -293,7 +295,7 @@ private:
     Optional<PropertyAndValue> parse_css_value_for_properties(ReadonlySpan<PropertyID>, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_builtin_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_calculated_value(ComponentValue const&);
-    RefPtr<CustomIdentStyleValue> parse_custom_ident_value(TokenStream<ComponentValue>&, std::initializer_list<StringView> blacklist);
+    RefPtr<CustomIdentStyleValue> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<StringView> blacklist);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
     RefPtr<CalculationNode> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode> parse_a_calc_function_node(Function const&, CalculationContext const&);
@@ -460,7 +462,7 @@ private:
     JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
-    URL::URL complete_url(StringView) const;
+    Optional<URL::URL> complete_url(StringView) const;
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;

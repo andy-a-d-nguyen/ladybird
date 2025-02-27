@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, Srikavin Ramkumar <me@srikavin.me>
@@ -12,6 +12,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/HTMLLinkElementPrototype.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -81,6 +82,7 @@ void HTMLLinkElement::inserted()
             // FIXME: Respect the "as" attribute.
             LoadRequest request;
             request.set_url(maybe_href.value());
+            request.set_page(Bindings::principal_host_defined_page(HTML::principal_realm(realm())));
             set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
         }
     } else if (m_relationship & Relationship::DNSPrefetch) {
@@ -130,6 +132,17 @@ bool HTMLLinkElement::has_loaded_icon() const
 void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
+
+    // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
+    if (name == HTML::AttributeNames::type) {
+        if (value.has_value())
+            m_mime_type = value->to_ascii_lowercase();
+        else {
+            m_mime_type = {};
+        }
+
+        return;
+    }
 
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     auto old_relationship = m_relationship;
@@ -284,7 +297,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto request = create_potential_CORS_request(vm(), *url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
-    request->set_policy_container(options.policy_container);
+    request->set_policy_container(GC::Ref { *options.policy_container });
 
     // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);
@@ -377,8 +390,14 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
 {
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
-    auto extracted_mime_type = response.header_list()->extract_mime_type();
-    if (!extracted_mime_type.has_value() || extracted_mime_type->essence() != "text/css") {
+    auto mime_type_string = m_mime_type;
+    if (!mime_type_string.has_value()) {
+        auto extracted_mime_type = response.header_list()->extract_mime_type();
+        if (extracted_mime_type.has_value())
+            mime_type_string = extracted_mime_type->essence();
+    }
+
+    if (mime_type_string != "text/css"sv) {
         success = false;
     }
 
@@ -478,6 +497,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     //     FIXME: 2. Decrement el's node document's script-blocking style sheet counter by 1.
 
     // 7. Unblock rendering on el.
+    unblock_rendering();
+
     m_document_load_event_delayer.clear();
 }
 
@@ -507,14 +528,28 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
 
     // 3. If el's media attribute's value matches the environment and el is potentially render-blocking, then block rendering on el.
     // FIXME: Check media attribute value.
+    if (is_potentially_render_blocking())
+        block_rendering();
+
     m_document_load_event_delayer.emplace(document());
 
     // 4. If el is currently render-blocking, then set request's render-blocking to true.
-    // FIXME: Check if el is currently render-blocking.
-    request.set_render_blocking(true);
+    if (document().is_render_blocking_element(*this))
+        request.set_render_blocking(true);
 
     // 5. Return true.
     return true;
+}
+
+void HTMLLinkElement::set_parser_document(Badge<HTMLParser>, GC::Ref<DOM::Document> document)
+{
+    m_parser_document = document->make_weak_ptr<DOM::Document>();
+}
+
+bool HTMLLinkElement::is_implicitly_potentially_render_blocking() const
+{
+    // A link element of this type is implicitly potentially render-blocking if the element was created by its node document's parser.
+    return &document() == m_parser_document;
 }
 
 void HTMLLinkElement::resource_did_load_favicon()

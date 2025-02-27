@@ -64,9 +64,14 @@ enum class CanPlayTypeResult;
 enum class CanvasFillRule;
 enum class CanvasTextAlign;
 enum class CanvasTextBaseline;
+enum class ColorGamut;
 enum class DOMParserSupportedType;
 enum class EndingType;
+enum class HdrMetadataType;
 enum class ImageSmoothingQuality;
+enum class MediaDecodingType;
+enum class MediaEncodingType;
+enum class MediaKeysRequirement;
 enum class ReadableStreamReaderMode;
 enum class ReferrerPolicy;
 enum class RequestCache;
@@ -79,6 +84,7 @@ enum class RequestRedirect;
 enum class ResizeObserverBoxOptions;
 enum class ResponseType;
 enum class TextTrackKind;
+enum class TransferFunction;
 enum class XMLHttpRequestResponseType;
 }
 
@@ -170,6 +176,7 @@ class EdgeStyleValue;
 class ElementInlineCSSStyleDeclaration;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
+class FitContentStyleValue;
 class Flex;
 class FlexOrCalculated;
 class FlexStyleValue;
@@ -357,7 +364,6 @@ class RefCountedFlag;
 
 namespace Web::Fetch::Infrastructure {
 class Body;
-class ConnectionTimingInfo;
 class FetchAlgorithms;
 class FetchController;
 class FetchParams;
@@ -369,6 +375,7 @@ class Request;
 class Response;
 
 struct BodyWithType;
+struct ConnectionTimingInfo;
 struct Header;
 }
 
@@ -577,6 +584,7 @@ struct POSTResource;
 struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
+struct SerializedPolicyContainer;
 struct StructuredSerializeOptions;
 struct SyntheticRealmSettings;
 struct ToggleTaskTracker;
@@ -656,6 +664,17 @@ class MathMLElement;
 
 namespace Web::MediaCapabilitiesAPI {
 class MediaCapabilities;
+
+struct AudioConfiguration;
+struct KeySystemTrackConfiguration;
+struct MediaCapabilitiesDecodingInfo;
+struct MediaCapabilitiesEncodingInfo;
+struct MediaCapabilitiesInfo;
+struct MediaCapabilitiesKeySystemConfiguration;
+struct MediaConfiguration;
+struct MediaDecodingConfiguration;
+struct MediaEncodingConfiguration;
+struct VideoConfiguration;
 }
 
 namespace Web::MediaSourceExtensions {
@@ -777,6 +796,7 @@ struct StorageShelf;
 }
 
 namespace Web::SVG {
+class SVGAnimatedEnumeration;
 class SVGAnimatedLength;
 class SVGAnimatedRect;
 class SVGCircleElement;
@@ -785,6 +805,7 @@ class SVGDefsElement;
 class SVGDescElement;
 class SVGElement;
 class SVGEllipseElement;
+class SVGFilterElement;
 class SVGForeignObjectElement;
 class SVGGeometryElement;
 class SVGGraphicsElement;

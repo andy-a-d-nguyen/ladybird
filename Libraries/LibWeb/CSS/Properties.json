@@ -247,7 +247,7 @@
     "initial": "none",
     "valid-types": [
       "string",
-      "custom-ident"
+      "custom-ident ![none]"
     ],
     "valid-identifiers": [
       "none"
@@ -880,7 +880,15 @@
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
-    "initial": "normal"
+    "initial": "normal",
+    "valid-types": [
+      "custom-ident ![normal,light,dark,only]"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "light",
+      "dark"
+    ]
   },
   "column-count": {
     "animation-type": "by-computed-value",
@@ -975,7 +983,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -987,7 +995,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -999,7 +1007,7 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
-      "custom-ident",
+      "custom-ident ![none]",
       "integer [-∞,∞]"
     ],
     "valid-identifiers": [
@@ -1123,13 +1131,13 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
       "content",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -1606,12 +1614,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2024,11 +2032,11 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "fit-content",
       "max-content",
       "min-content",
       "none"
@@ -2050,11 +2058,11 @@
     "inherited": false,
     "initial": "none",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "fit-content",
       "max-content",
       "min-content",
       "none"
@@ -2076,12 +2084,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2102,12 +2110,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],
@@ -2840,8 +2848,7 @@
     "inherited": false,
     "initial": "all",
     "valid-types": [
-      "string",
-      "custom-ident"
+      "custom-ident ![all,none]"
     ],
     "valid-identifiers": [
       "all",
@@ -2895,6 +2902,19 @@
       "unitless-length"
     ]
   },
+  "view-transition-name": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident ![auto,none]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "visibility": {
     "animation-type": "custom",
     "inherited": true,
@@ -2916,12 +2936,12 @@
     "inherited": false,
     "initial": "auto",
     "valid-types": [
+      "fit-content",
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
       "auto",
-      "fit-content",
       "max-content",
       "min-content"
     ],

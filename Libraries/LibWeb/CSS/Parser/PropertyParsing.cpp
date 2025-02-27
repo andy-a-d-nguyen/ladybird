@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
@@ -55,6 +56,7 @@
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS::Parser {
 
@@ -157,7 +159,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         // Custom idents
         if (auto property = any_property_accepts_type(property_ids, ValueType::CustomIdent); property.has_value()) {
             auto context_guard = push_temporary_value_parsing_context(*property);
-            if (auto custom_ident = parse_custom_ident_value(tokens, {}))
+            if (auto custom_ident = parse_custom_ident_value(tokens, property_custom_ident_blacklist(*property)))
                 return PropertyAndValue { *property, custom_ident };
         }
     }
@@ -298,6 +300,12 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
                 return PropertyAndValue { *property, value };
         }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::FitContent); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
+        if (auto value = parse_fit_content_value(tokens))
+            return PropertyAndValue { *property, value };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
@@ -834,7 +842,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_scheme_value(TokenStream<ComponentValu
 
         // The 'normal', 'light', 'dark', and 'only' keywords are not valid <custom-ident>s in this property.
         // Note: only 'normal' is blacklisted here because 'light' and 'dark' aren't parsed differently and 'only' is checked for afterwards
-        auto ident = parse_custom_ident_value(tokens, { "normal"sv });
+        auto ident = parse_custom_ident_value(tokens, { { "normal"sv } });
         if (!ident)
             return {};
 
